@@ -166,13 +166,9 @@ app_license = "mit"
 
 # before_tests = "eduction_override.install.before_tests"
 
-# Extend DocType Class
-# ------------------------------
-#
-# Specify custom mixins to extend the standard doctype controller.
-# extend_doctype_class = {
-# 	"Task": "eduction_override.custom.task.CustomTaskMixin"
-# }
+extend_doctype_class = {
+	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule"
+}
 
 # Overriding Methods
 # ------------------------------
