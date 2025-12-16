@@ -61,7 +61,7 @@ required_apps = ["education","erpnext"]
 
 # website user home page (by Role)
 role_home_page = {
-	"Student": "/student-portal"
+	"Student": ["student-portal"]
 }
 
 # Generators
@@ -242,6 +242,10 @@ web_include_js = ["/assets/eduction_override/js/student_applicant_webform.js"]
 
 # Authentication and authorization
 # --------------------------------
+
+on_login = [
+	"eduction_override.eduction_override.auth.on_login"
+]
 
 # auth_hooks = [
 # 	"eduction_override.auth.validate"

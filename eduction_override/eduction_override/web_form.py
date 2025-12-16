@@ -2,7 +2,7 @@ import json
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import random_string
+from frappe.utils import random_string, today
 from frappe.website.doctype.web_form.web_form import accept as original_accept
 
 
@@ -97,6 +97,14 @@ def accept(web_form, data):
 				frappe.logger().info(f"User already exists: {student_applicant.student_email_id}")
 				username = student_applicant.student_email_id
 		
+		# Create Student document from Student Applicant
+		# This ensures Student is created even if after_insert fails
+		try:
+			create_student_from_applicant(student_applicant, username)
+		except Exception as e:
+			frappe.logger().error(f"Error creating Student: {str(e)}")
+			frappe.log_error(f"Error creating Student in webform: {str(e)}", frappe.get_traceback())
+		
 		# Convert doc to dict and add credentials if available
 		doc_dict = doc.as_dict(no_nulls=True)
 		
@@ -115,4 +123,92 @@ def accept(web_form, data):
 	
 	# Return doc for other doctypes
 	return doc
+
+
+def create_student_from_applicant(student_applicant, username=None):
+	"""Create a Student document from Student Applicant"""
+	# Check if Student already exists for this applicant
+	if frappe.db.exists("Student", {"student_applicant": student_applicant.name}):
+		frappe.logger().info(f"Student already exists for applicant: {student_applicant.name}")
+		return
+	
+	# Check if Student already exists with same email
+	if student_applicant.student_email_id and frappe.db.exists("Student", {"student_email_id": student_applicant.student_email_id}):
+		frappe.logger().info(f"Student already exists with email: {student_applicant.student_email_id}")
+		return
+	
+	# Temporarily switch to Administrator to create Student
+	original_user = frappe.session.user
+	try:
+		frappe.set_user("Administrator")
+		frappe.flags.ignore_permissions = True
+		
+		# Create Student document using new_doc
+		student = frappe.new_doc("Student")
+		student.update({
+			"student_applicant": student_applicant.name,
+			"first_name": student_applicant.first_name,
+			"middle_name": student_applicant.middle_name or "",
+			"last_name": student_applicant.last_name or "",
+			"student_email_id": student_applicant.student_email_id,
+			"student_mobile_number": student_applicant.student_mobile_number or "",
+			"date_of_birth": student_applicant.date_of_birth,
+			"gender": student_applicant.gender,
+			"blood_group": student_applicant.blood_group or "",
+			"nationality": student_applicant.nationality or "",
+			"address_line_1": student_applicant.address_line_1 or "",
+			"address_line_2": student_applicant.address_line_2 or "",
+			"city": student_applicant.city or "",
+			"state": student_applicant.state or "",
+			"pincode": student_applicant.pincode or "",
+			"country": student_applicant.country or "",
+			"image": student_applicant.image or "",
+			"joining_date": today(),  # Set joining date to today
+		})
+		
+		# Set user if it exists
+		if username:
+			student.user = username
+		elif student_applicant.student_email_id and frappe.db.exists("User", student_applicant.student_email_id):
+			student.user = student_applicant.student_email_id
+		
+		# Copy guardians if they exist
+		if hasattr(student_applicant, "guardians") and student_applicant.guardians:
+			for guardian in student_applicant.guardians:
+				student.append("guardians", {
+					"guardian": guardian.guardian,
+					"guardian_name": guardian.guardian_name,
+					"relation": guardian.relation,
+					"mobile_number": guardian.mobile_number,
+					"email_address": guardian.email_address,
+					"alternate_phone_number": guardian.alternate_phone_number,
+					"occupation": guardian.occupation,
+					"address": guardian.address,
+				})
+		
+		# Copy siblings if they exist
+		if hasattr(student_applicant, "siblings") and student_applicant.siblings:
+			for sibling in student_applicant.siblings:
+				student.append("siblings", {
+					"first_name": sibling.first_name,
+					"last_name": sibling.last_name,
+					"gender": sibling.gender,
+					"date_of_birth": sibling.date_of_birth,
+				})
+		
+		student.insert(ignore_permissions=True)
+		
+		frappe.logger().info(f"Student created successfully: {student.name} from applicant: {student_applicant.name}")
+		
+		# Update applicant status to Admitted
+		frappe.db.set_value("Student Applicant", student_applicant.name, "application_status", "Admitted")
+	except Exception as e:
+		frappe.logger().error(f"Error creating Student from applicant: {str(e)}")
+		frappe.log_error(f"Error creating Student from applicant: {str(e)}", frappe.get_traceback())
+		raise
+	finally:
+		# Always restore original user and flags
+		frappe.flags.ignore_permissions = False
+		if frappe.session.user != original_user:
+			frappe.set_user(original_user)
 

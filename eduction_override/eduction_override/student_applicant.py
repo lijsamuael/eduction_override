@@ -90,9 +90,9 @@ class CustomStudentApplicant(StudentApplicant):
 			frappe.set_user("Administrator")
 			frappe.flags.ignore_permissions = True
 			
-			# Map fields from Student Applicant to Student
-			student_data = {
-				"doctype": "Student",
+			# Create Student document using new_doc
+			student = frappe.new_doc("Student")
+			student.update({
 				"student_applicant": self.name,
 				"first_name": self.first_name,
 				"middle_name": self.middle_name or "",
@@ -111,14 +111,11 @@ class CustomStudentApplicant(StudentApplicant):
 				"country": self.country or "",
 				"image": self.image or "",
 				"joining_date": today(),  # Set joining date to today
-			}
+			})
 			
 			# Set user if it exists
 			if self.student_email_id and frappe.db.exists("User", self.student_email_id):
-				student_data["user"] = self.student_email_id
-			
-			# Create Student document
-			student = frappe.get_doc(student_data)
+				student.user = self.student_email_id
 			
 			# Copy guardians if they exist
 			if hasattr(self, "guardians") and self.guardians:
@@ -144,7 +141,7 @@ class CustomStudentApplicant(StudentApplicant):
 						"date_of_birth": sibling.date_of_birth,
 					})
 			
-			student.save(ignore_permissions=True)
+			student.insert(ignore_permissions=True)
 			
 			frappe.logger().info(f"Student created successfully: {student.name} from applicant: {self.name}")
 			
