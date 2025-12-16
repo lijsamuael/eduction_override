@@ -17,6 +17,18 @@ def accept(web_form, data):
 	web_form_doc = frappe.get_doc("Web Form", web_form)
 	is_student_applicant = web_form_doc.doc_type == "Student Applicant"
 	
+	# Filter out 'company' field for Student Applicant webform
+	# This field doesn't exist in Student Applicant doctype and causes validation errors
+	# Reference: https://github.com/frappe/education/issues/316
+	if is_student_applicant:
+		# Parse the data (it's always a JSON string from the frontend)
+		data_dict = json.loads(data)
+		if 'company' in data_dict:
+			del data_dict['company']
+			frappe.logger().info("Removed 'company' field from Student Applicant webform data")
+			# Convert back to JSON string
+			data = json.dumps(data_dict)
+	
 	# Call the original accept method
 	doc = original_accept(web_form, data)
 	

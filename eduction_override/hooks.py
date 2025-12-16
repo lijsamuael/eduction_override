@@ -169,7 +169,8 @@ required_apps = ["education","erpnext"]
 extend_doctype_class = {
 	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule",
 	"Student": "eduction_override.eduction_override.student.CustomStudent",
-	"Student Applicant": "eduction_override.eduction_override.student_applicant.CustomStudentApplicant"
+	"Student Applicant": "eduction_override.eduction_override.student_applicant.CustomStudentApplicant",
+	"Web Form": "eduction_override.eduction_override.web_form_doctype.CustomWebForm"
 }
 
 # Override webform accept method
