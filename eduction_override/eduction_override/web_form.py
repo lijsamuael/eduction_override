@@ -58,10 +58,15 @@ def accept(web_form, data):
 						generated_password = random_string(10)
 						frappe.logger().info(f"Generating password for new user")
 						
-						# Create user
-						student_user = frappe.get_doc(
-							{
-								"doctype": "User",
+						# Temporarily switch to Administrator to create User
+						original_user = frappe.session.user
+						try:
+							frappe.set_user("Administrator")
+							frappe.flags.ignore_permissions = True
+							
+							# Create user using new_doc and insert
+							student_user = frappe.new_doc("User")
+							student_user.update({
 								"first_name": student_applicant.first_name,
 								"last_name": student_applicant.last_name,
 								"email": student_applicant.student_email_id,
@@ -69,10 +74,15 @@ def accept(web_form, data):
 								"send_welcome_email": 0,  # Don't send email, we'll return password in response
 								"user_type": "Website User",
 								"new_password": generated_password,
-							}
-						)
-						student_user.add_roles("Student")
-						student_user.save(ignore_permissions=True)
+							})
+							student_user.insert(ignore_permissions=True)
+							student_user.add_roles("Student")
+							student_user.save(ignore_permissions=True)
+						finally:
+							# Always restore original user and flags
+							frappe.flags.ignore_permissions = False
+							if frappe.session.user != original_user:
+								frappe.set_user(original_user)
 						
 						username = student_user.name
 						password = generated_password
@@ -80,7 +90,7 @@ def accept(web_form, data):
 						frappe.logger().info(f"User created successfully: {username}")
 					except Exception as e:
 						frappe.logger().error(f"Error creating user: {str(e)}")
-						frappe.log_exception()
+						frappe.log_error(f"Error creating user in webform: {str(e)}", frappe.get_traceback())
 				else:
 					frappe.logger().info("User creation is skipped in Education Settings")
 			else:
