@@ -167,8 +167,20 @@ required_apps = ["education","erpnext"]
 # before_tests = "eduction_override.install.before_tests"
 
 extend_doctype_class = {
-	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule"
+	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule",
+	"Student": "eduction_override.eduction_override.student.CustomStudent",
+	"Student Applicant": "eduction_override.eduction_override.student_applicant.CustomStudentApplicant"
 }
+
+# Override webform accept method
+override_whitelisted_methods = {
+	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.eduction_override.web_form.accept"
+}
+
+# Include JavaScript for Student Applicant webform
+# Using web_include_js to ensure it loads on all website pages
+# Use full assets path for non-bundled files
+web_include_js = ["/assets/eduction_override/js/student_applicant_webform.js"]
 
 # Overriding Methods
 # ------------------------------
