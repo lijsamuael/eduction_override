@@ -1,0 +1,24 @@
+<div class="web-list-item">
+	<a class="no-underline text-reset" href="/app/student-applicant/{{ doc.name }}">
+		<div class="row">
+			<div class="col-sm-3">
+				<strong>{{ doc.name }}</strong>
+			</div>
+			<div class="col-sm-3">
+				{{ doc.title or (doc.first_name or "") + " " + (doc.last_name or "") }}
+			</div>
+			<div class="col-sm-2">
+				{{ doc.program or "" }}
+			</div>
+			<div class="col-sm-2">
+				{{ doc.academic_year or "" }}
+			</div>
+			<div class="col-sm-2">
+				<span class="badge badge-{{ 'success' if doc.application_status == 'Admitted' else 'info' if doc.application_status == 'Approved' else 'warning' if doc.application_status == 'Applied' else 'secondary' }}">
+					{{ doc.application_status or "Applied" }}
+				</span>
+			</div>
+		</div>
+	</a>
+</div>
+

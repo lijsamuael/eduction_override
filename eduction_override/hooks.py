@@ -30,7 +30,7 @@ required_apps = ["education","erpnext"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/eduction_override/css/eduction_override.css"
-# web_include_js = "/assets/eduction_override/js/eduction_override.js"
+web_include_js = "/assets/eduction_override/js/student_portal_menu.js"
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "eduction_override/public/scss/website"
@@ -40,7 +40,7 @@ required_apps = ["education","erpnext"]
 # webform_include_css = {"doctype": "public/css/doctype.css"}
 
 # include js in page
-# page_js = {"page" : "public/js/file.js"}
+page_js = {"student-portal": "public/js/student_portal_menu.js"}
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
@@ -60,9 +60,9 @@ required_apps = ["education","erpnext"]
 # home_page = "login"
 
 # website user home page (by Role)
-role_home_page = {
-	"Student": ["student-portal"]
-}
+# role_home_page = {
+# 	"Role": "home_page"
+# }
 
 # Generators
 # ----------
@@ -173,15 +173,15 @@ extend_doctype_class = {
 	"Web Form": "eduction_override.eduction_override.web_form_doctype.CustomWebForm"
 }
 
-# Override webform accept method
-override_whitelisted_methods = {
-	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.eduction_override.web_form.accept"
-}
-
-# Include JavaScript for Student Applicant webform
-# Using web_include_js to ensure it loads on all website pages
-# Use full assets path for non-bundled files
-web_include_js = ["/assets/eduction_override/js/student_applicant_webform.js"]
+# Portal menu items for Student role
+standard_portal_menu_items = [
+	{
+		"title": "Student Applicant",
+		"route": "/student_applicant_list",
+		"reference_doctype": "Student Applicant",
+		"role": "Student",
+	},
+]
 
 # Overriding Methods
 # ------------------------------
@@ -242,10 +242,6 @@ web_include_js = ["/assets/eduction_override/js/student_applicant_webform.js"]
 
 # Authentication and authorization
 # --------------------------------
-
-on_login = [
-	"eduction_override.eduction_override.auth.on_login"
-]
 
 # auth_hooks = [
 # 	"eduction_override.auth.validate"

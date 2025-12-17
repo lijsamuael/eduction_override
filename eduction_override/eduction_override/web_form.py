@@ -76,8 +76,8 @@ def accept(web_form, data):
 								"new_password": generated_password,
 							})
 							student_user.insert(ignore_permissions=True)
-							student_user.add_roles("Student")
-							student_user.save(ignore_permissions=True)
+						student_user.add_roles("Student")
+						student_user.save(ignore_permissions=True)
 						finally:
 							# Always restore original user and flags
 							frappe.flags.ignore_permissions = False
