@@ -44,9 +44,13 @@ def accept(web_form, data):
 		password = None
 		
 		# Create user if email is provided and user doesn't exist
+		# Always generate and return password (for new users or reset for existing users)
 		if student_applicant.student_email_id:
 			# Check if user already exists
 			user_exists = frappe.db.exists("User", student_applicant.student_email_id)
+			
+			# Generate password (will be used for new user or reset for existing user)
+			generated_password = random_string(10)
 			
 			if not user_exists:
 				# Check if user creation should be skipped
@@ -54,9 +58,7 @@ def accept(web_form, data):
 				
 				if not user_creation_skip:
 					try:
-						# Generate password
-						generated_password = random_string(10)
-						frappe.logger().info(f"Generating password for new user")
+						frappe.logger().info(f"Creating new user with generated password")
 						
 						# Temporarily switch to Administrator to create User
 						original_user = frappe.session.user
@@ -76,8 +78,11 @@ def accept(web_form, data):
 								"new_password": generated_password,
 							})
 							student_user.insert(ignore_permissions=True)
-						student_user.add_roles("Student")
-						student_user.save(ignore_permissions=True)
+							student_user.add_roles("Student")
+							student_user.save(ignore_permissions=True)
+						except Exception as user_error:
+							frappe.logger().error(f"Error creating user: {str(user_error)}")
+							raise
 						finally:
 							# Always restore original user and flags
 							frappe.flags.ignore_permissions = False
@@ -93,9 +98,47 @@ def accept(web_form, data):
 						frappe.log_error(f"Error creating user in webform: {str(e)}", frappe.get_traceback())
 				else:
 					frappe.logger().info("User creation is skipped in Education Settings")
+					username = student_applicant.student_email_id
+					password = None
 			else:
-				frappe.logger().info(f"User already exists: {student_applicant.student_email_id}")
-				username = student_applicant.student_email_id
+				# User already exists - reset password and return it
+				frappe.logger().info(f"User already exists: {student_applicant.student_email_id}, resetting password")
+				try:
+					# Temporarily switch to Administrator to reset password
+					original_user = frappe.session.user
+					try:
+						frappe.set_user("Administrator")
+						frappe.flags.ignore_permissions = True
+						
+						# Get existing user and reset password
+						student_user = frappe.get_doc("User", student_applicant.student_email_id)
+						student_user.new_password = generated_password
+						student_user.save(ignore_permissions=True)
+						
+						# Ensure Student role is assigned
+						if "Student" not in frappe.get_roles(student_user.name):
+							student_user.add_roles("Student")
+							student_user.save(ignore_permissions=True)
+						
+					except Exception as user_error:
+						frappe.logger().error(f"Error resetting password: {str(user_error)}")
+						raise
+					finally:
+						# Always restore original user and flags
+						frappe.flags.ignore_permissions = False
+						if frappe.session.user != original_user:
+							frappe.set_user(original_user)
+					
+					username = student_user.name
+					password = generated_password
+					
+					frappe.logger().info(f"Password reset successfully for existing user: {username}")
+				except Exception as e:
+					frappe.logger().error(f"Error resetting password for existing user: {str(e)}")
+					frappe.log_error(f"Error resetting password: {str(e)}", frappe.get_traceback())
+					# Still return username even if password reset failed
+					username = student_applicant.student_email_id
+					password = None
 		
 		# Create Student document from Student Applicant
 		# This ensures Student is created even if after_insert fails
@@ -108,15 +151,16 @@ def accept(web_form, data):
 		# Convert doc to dict and add credentials if available
 		doc_dict = doc.as_dict(no_nulls=True)
 		
-		if username and password:
+		# Always return username if available
+		if username:
 			doc_dict['username'] = username
-			doc_dict['password'] = password
-			doc_dict['credentials_generated'] = True
-			frappe.logger().info(f"Returning credentials in response for: {username}")
-		elif username:
-			doc_dict['username'] = username
-			doc_dict['user_exists'] = True
-			frappe.logger().info(f"Returning user exists message for: {username}")
+			if password:
+				doc_dict['password'] = password
+				doc_dict['credentials_generated'] = True
+				frappe.logger().info(f"Returning credentials in response for: {username}")
+			else:
+				doc_dict['user_exists'] = True
+				frappe.logger().info(f"Returning user exists message (no password) for: {username}")
 		
 		# Return dict with credentials
 		return doc_dict

@@ -8,6 +8,10 @@ def on_login(login_manager):
 	if "Student" in user_roles:
 		frappe.local.flags.student_redirect = True
 		frappe.logger().info(f"Student role detected for {login_manager.user}, will redirect to /student-portal")
+		# Set home_page directly in response
+		if hasattr(frappe.local, 'response'):
+			frappe.local.response["home_page"] = "/student-portal"
+			frappe.logger().info(f"✓ Set home_page to /student-portal for {login_manager.user}")
 
 
 # Monkey-patch set_user_info to check for Student role

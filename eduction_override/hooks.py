@@ -30,17 +30,21 @@ required_apps = ["education","erpnext"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/eduction_override/css/eduction_override.css"
-web_include_js = "/assets/eduction_override/js/student_portal_menu.js"
+web_include_js = [
+	"/assets/eduction_override/js/student_portal_menu.js",
+	"/assets/eduction_override/js/student_portal_sidebar.js",
+]
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "eduction_override/public/scss/website"
 
 # include js, css files in header of web form
-# webform_include_js = {"doctype": "public/js/doctype.js"}
+webform_include_js = {"Student Applicant": "public/js/student_applicant_webform.js"}
 # webform_include_css = {"doctype": "public/css/doctype.css"}
 
 # include js in page
-page_js = {"student-portal": "public/js/student_portal_menu.js"}
+# Disabled for student-portal since it uses Vue and has its own menu
+# page_js = {"student-portal": "public/js/student_portal_menu.js"}
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
@@ -177,7 +181,7 @@ extend_doctype_class = {
 standard_portal_menu_items = [
 	{
 		"title": "Student Applicant",
-		"route": "/student_applicant_list",
+		"route": "/app/student-applicant",
 		"reference_doctype": "Student Applicant",
 		"role": "Student",
 	},
@@ -185,10 +189,10 @@ standard_portal_menu_items = [
 
 # Overriding Methods
 # ------------------------------
-#
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "eduction_override.event.get_events"
-# }
+override_whitelisted_methods = {
+	"frappe.www.list.get": "eduction_override.eduction_override.list_override.get",
+	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.eduction_override.web_form.accept"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
@@ -208,8 +212,12 @@ standard_portal_menu_items = [
 
 # Request Events
 # ----------------
-# before_request = ["eduction_override.utils.before_request"]
+before_request = ["eduction_override.eduction_override.utils.before_request"]
 # after_request = ["eduction_override.utils.after_request"]
+
+# After Migrate
+# -------------
+after_migrate = ["eduction_override.eduction_override.fix_portal_menu.fix_student_applicant_menu"]
 
 # Job Events
 # ----------
@@ -243,9 +251,9 @@ standard_portal_menu_items = [
 # Authentication and authorization
 # --------------------------------
 
-# auth_hooks = [
-# 	"eduction_override.auth.validate"
-# ]
+on_login = [
+	"eduction_override.eduction_override.auth.on_login"
+]
 
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
