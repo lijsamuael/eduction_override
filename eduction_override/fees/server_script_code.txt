@@ -1,0 +1,144 @@
+# Add Late Fine to Overdue Invoices
+overdue_invoices = frappe.get_all(
+	"Sales Invoice",
+	filters={
+		"status": ["like", "Overdue%"],
+		"custom_has_late_fine": 1,
+		"custom_late_fine_amount": [">", 0],
+		"docstatus": ["<", 2]
+	},
+	fields=["name", "custom_late_fine_amount", "custom_late_fine_description", "custom_late_fine_from", "fee_schedule", "status", "docstatus"]
+)
+
+processed_count = 0
+for invoice_data in overdue_invoices:
+	invoice_name = invoice_data.name
+	late_fine_amount = invoice_data.custom_late_fine_amount or 0
+	description = invoice_data.custom_late_fine_description
+	late_fine_from = invoice_data.custom_late_fine_from
+	fee_schedule_name = invoice_data.fee_schedule
+	
+	# Skip if amount is zero or negative
+	if late_fine_amount <= 0:
+		continue
+	
+	# Skip if late fine date is not set
+	if not late_fine_from:
+		continue
+	
+	# Check if current date >= late fine date (only process when date has passed)
+	current_date = frappe.utils.today()
+	current_date_obj = frappe.utils.getdate(current_date)
+	late_fine_date_obj = frappe.utils.getdate(late_fine_from)
+	
+	# Only proceed if current date >= late fine date
+	if current_date_obj < late_fine_date_obj:
+		continue
+	
+	try:
+		invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
+		
+		has_late_fine = False
+		for item in invoice_doc.items:
+			item_check = (item.item_code and "Late Fine" in (item.item_code or "")) or \
+			   (item.item_name and "Late Fine" in (item.item_name or "")) or \
+			   (item.description and "Late Fine" in (item.description or ""))
+			if item_check:
+				has_late_fine = True
+				break
+		
+		if has_late_fine:
+			continue
+		
+		late_fine_component = None
+		if fee_schedule_name:
+			try:
+				fee_schedule_doc = frappe.get_doc("Fee Schedule", fee_schedule_name)
+				for component in fee_schedule_doc.components:
+					if component.fees_category == "Late Fine" or "Late Fine" in (component.description or ""):
+						late_fine_component = component
+						break
+			except Exception:
+				pass
+		
+		item_code = None
+		item_name = "Late Fine"
+		uom = "Nos"
+		income_account = None
+		
+		# Get item details if available
+		if late_fine_component and late_fine_component.item:
+			item_code = late_fine_component.item
+			item_name = late_fine_component.item
+		
+		if not item_code:
+			item_code = frappe.db.get_value("Item", {"item_name": "Late Fine"}, "name")
+			if not item_code:
+				item_code = frappe.db.get_value("Item", {"item_code": "Late Fine"}, "name")
+		
+		# Get UOM and income account from item if available
+		if item_code:
+			try:
+				item_doc = frappe.get_doc("Item", item_code)
+				if item_doc:
+					uom = item_doc.stock_uom or "Nos"
+					item_name = item_doc.item_name or item_name
+			except Exception:
+				# If item doesn't exist or can't be fetched, use defaults
+				pass
+		
+		# Get income account from existing invoice items or use default
+		if invoice_doc.items and len(invoice_doc.items) > 0:
+			# Use income_account from first existing item
+			income_account = invoice_doc.items[0].income_account
+		
+		# If no income account found, get from company defaults
+		if not income_account:
+			income_account = frappe.db.get_value("Company", invoice_doc.company, "default_income_account")
+		
+		# If still no income account, try to get from against_income_account field
+		if not income_account and invoice_doc.against_income_account:
+			income_account = invoice_doc.against_income_account.split(",")[0].strip()
+		
+		# Validate that required fields are set
+		if not income_account:
+			frappe.log_error(
+				title="Error: Missing income_account for invoice " + invoice_name,
+				message="Cannot add late fine item: income_account is required but not found."
+			)
+			continue
+		
+		# Add late fine item to the invoice (works for both draft and submitted invoices)
+		# Since allow_on_submit is enabled for items table and calculated fields,
+		# we can directly append items to submitted invoices
+		item_row = invoice_doc.append("items", {
+			"item_code": item_code,
+			"item_name": item_name,
+			"uom": uom,
+			"stock_uom": uom,
+			"income_account": income_account,
+			"description": description or (late_fine_component.description if late_fine_component else "Late Fine"),
+			"qty": 1,
+			"rate": late_fine_amount,
+			"amount": late_fine_amount
+		})
+		
+		if late_fine_component and late_fine_component.discount:
+			item_row.discount_percentage = late_fine_component.discount
+			item_row.amount = late_fine_amount - (late_fine_amount * late_fine_component.discount / 100)
+		
+		# Recalculate totals (grand_total, total, in_words, etc. have allow_on_submit enabled)
+		invoice_doc.calculate_taxes_and_totals()
+		invoice_doc.save()
+		frappe.db.commit()
+		
+		frappe.log_error("Successfully added late fine item to invoice " + invoice_name, "Late Fine Success")
+		processed_count = processed_count + 1
+		
+	except Exception as e:
+		frappe.log_error(
+			title="Error adding late fine to overdue invoice " + invoice_name,
+			message="Error: " + str(e)
+		)
+
+

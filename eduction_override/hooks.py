@@ -143,23 +143,11 @@ required_apps = ["education","erpnext"]
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"eduction_override.tasks.all"
-# 	],
-# 	"daily": [
-# 		"eduction_override.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"eduction_override.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"eduction_override.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"eduction_override.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		"eduction_override.fees.tasks.daily"
+	]
+}
 
 # Testing
 # -------
@@ -167,15 +155,16 @@ required_apps = ["education","erpnext"]
 # before_tests = "eduction_override.install.before_tests"
 
 extend_doctype_class = {
-	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule"
+	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule",
+	"Sales Invoice": "eduction_override.accounts.sales_invoice_override.CustomSalesInvoice"
 }
 
 # Overriding Methods
 # ------------------------------
-#
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "eduction_override.event.get_events"
-# }
+
+# override_whitelisted_methods is not used for create_sales_invoice 
+# because it's not a whitelisted method. We use monkey patching instead.
+# The patch is applied in eduction_override.fees.__init__
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,

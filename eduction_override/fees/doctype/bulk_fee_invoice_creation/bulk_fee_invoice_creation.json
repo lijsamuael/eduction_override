@@ -1,0 +1,216 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+  "field_order": [
+  "fee_structure",
+  "posting_date",
+  "due_date",
+  "naming_series",
+  "send_email",
+  "column_break_4",
+  "company",
+  "section_break_late_fine",
+  "allow_late_fine",
+  "fine_frequency",
+  "column_break_late_fine",
+  "late_fine_amount",
+  "late_fine_from",
+  "late_fine_description",
+  "section_break_classes",
+  "class_sections_html",
+  "section_break_logs",
+  "error_log",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "fee_structure",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Fee Structure",
+   "options": "Fee Structure",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_fee_components",
+   "fieldtype": "Section Break",
+   "label": "Fee Components"
+  },
+  {
+   "fieldname": "fee_components",
+   "fieldtype": "Table",
+   "label": "Components",
+   "options": "Fee Component"
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "EDU-BFIC-.YYYY.-"
+  },
+  {
+   "default": "0",
+   "fieldname": "send_email",
+   "fieldtype": "Check",
+   "label": "Send Payment Request Email"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Institution",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_late_fine",
+   "fieldtype": "Section Break",
+   "label": "Late Fine Configuration"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_late_fine",
+   "fieldtype": "Check",
+   "label": "Allow Late Fine"
+  },
+  {
+   "depends_on": "allow_late_fine",
+   "fieldname": "fine_frequency",
+   "fieldtype": "Select",
+   "label": "Fine Frequency",
+   "options": "Once\nDaily\nWeekly\nMonthly"
+  },
+  {
+   "fieldname": "column_break_late_fine",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_late_fine",
+   "fieldname": "late_fine_amount",
+   "fieldtype": "Currency",
+   "label": "Late Fine Amount"
+  },
+  {
+   "depends_on": "allow_late_fine",
+   "fieldname": "late_fine_from",
+   "fieldtype": "Date",
+   "label": "Late Fine From"
+  },
+  {
+   "depends_on": "allow_late_fine",
+   "fieldname": "late_fine_description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_break_classes",
+   "fieldtype": "Section Break",
+   "label": "Classes and Sections"
+  },
+  {
+   "fieldname": "class_sections_html",
+   "fieldtype": "HTML",
+   "label": "Classes and Sections"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "error_log",
+   "fieldname": "section_break_logs",
+   "fieldtype": "Section Break",
+   "label": "Error Log"
+  },
+  {
+   "fieldname": "error_log",
+   "fieldtype": "Small Text",
+   "label": "Error Log"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "hide_days": 1,
+   "hide_seconds": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "length": 30,
+   "no_copy": 1,
+   "options": "Draft\nIn Process\nCompleted\nFailed",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fees",
+ "name": "Bulk Fee Invoice Creation",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academics User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

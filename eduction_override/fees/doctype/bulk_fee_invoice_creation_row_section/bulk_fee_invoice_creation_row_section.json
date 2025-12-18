@@ -1,0 +1,39 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section",
+  "total_students"
+ ],
+ "fields": [
+  {
+   "fieldname": "section",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Section",
+   "options": "Student Group",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_students",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total Students"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2025-12-17 23:02:03.672876",
+ "modified_by": "Administrator",
+ "module": "Fees",
+ "name": "Bulk Fee Invoice Creation Row Section",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

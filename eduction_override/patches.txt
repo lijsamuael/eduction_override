@@ -4,4 +4,6 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
-eduction_override.patches.add_billing_contact_field
+eduction_override.fees.patches.add_billing_contact_field
+eduction_override.fees.patches.remove_additional_settings_fields
+eduction_override.fees.patches.add_late_fee_fields_to_sales_invoice
