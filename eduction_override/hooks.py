@@ -30,9 +30,9 @@ required_apps = ["education","erpnext"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/eduction_override/css/eduction_override.css"
+# Note: student_portal_menu.js kept for traditional portal pages (non-Vue)
 web_include_js = [
 	"/assets/eduction_override/js/student_portal_menu.js",
-	"/assets/eduction_override/js/student_portal_sidebar.js",
 ]
 
 # include custom scss in every website theme (without file extension ".scss")
@@ -47,7 +47,7 @@ webform_include_js = {"Student Applicant": "public/js/student_applicant_webform.
 # page_js = {"student-portal": "public/js/student_portal_menu.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Student Admission": "public/js/student_admission.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -174,10 +174,12 @@ extend_doctype_class = {
 	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule",
 	"Student": "eduction_override.eduction_override.student.CustomStudent",
 	"Student Applicant": "eduction_override.eduction_override.student_applicant.CustomStudentApplicant",
-	"Web Form": "eduction_override.eduction_override.web_form_doctype.CustomWebForm"
+	"Web Form": "eduction_override.eduction_override.web_form_doctype.CustomWebForm",
+	"Student Admission": "eduction_override.eduction_override.student_admission.StudentAdmission"
 }
 
-# Portal menu items for Student role
+# Portal menu items for Student role (for traditional Frappe portal pages)
+# Note: Vue portal menu is handled directly in education module
 standard_portal_menu_items = [
 	{
 		"title": "Student Applicant",
