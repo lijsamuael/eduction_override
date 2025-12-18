@@ -37,6 +37,10 @@ def accept(web_form, data):
 	# If this is a Student Applicant webform, create user and return credentials
 	if is_student_applicant:
 		student_applicant = doc
+		# Reload the doc to ensure we have the latest field values (important for Save/Update operations)
+		if student_applicant.name:
+			student_applicant.reload()
+		
 		frappe.logger().info(f"Processing Student Applicant: {student_applicant.name}")
 		frappe.logger().info(f"Student email: {student_applicant.student_email_id}")
 		
@@ -45,9 +49,19 @@ def accept(web_form, data):
 		
 		# Create user if email is provided and user doesn't exist
 		# Always generate and return password (for new users or reset for existing users)
-		if student_applicant.student_email_id:
+		# Check both the doc and the incoming data for email (in case of Save/Update)
+		student_email = student_applicant.student_email_id
+		if not student_email and is_student_applicant:
+			# Try to get email from incoming data if not in doc
+			data_dict = json.loads(data) if isinstance(data, str) else data
+			student_email = data_dict.get('student_email_id') or data_dict.get('email')
+			# Update the doc with the email if found in data but missing from doc
+			if student_email and not student_applicant.student_email_id:
+				student_applicant.student_email_id = student_email
+		
+		if student_email:
 			# Check if user already exists
-			user_exists = frappe.db.exists("User", student_applicant.student_email_id)
+			user_exists = frappe.db.exists("User", student_email)
 			
 			# Generate password (will be used for new user or reset for existing user)
 			generated_password = random_string(10)
@@ -71,7 +85,7 @@ def accept(web_form, data):
 							student_user.update({
 								"first_name": student_applicant.first_name,
 								"last_name": student_applicant.last_name,
-								"email": student_applicant.student_email_id,
+								"email": student_email,
 								"gender": student_applicant.gender or "",
 								"send_welcome_email": 0,  # Don't send email, we'll return password in response
 								"user_type": "Website User",
@@ -98,11 +112,11 @@ def accept(web_form, data):
 						frappe.log_error(f"Error creating user in webform: {str(e)}", frappe.get_traceback())
 				else:
 					frappe.logger().info("User creation is skipped in Education Settings")
-					username = student_applicant.student_email_id
+					username = student_email
 					password = None
 			else:
 				# User already exists - reset password and return it
-				frappe.logger().info(f"User already exists: {student_applicant.student_email_id}, resetting password")
+				frappe.logger().info(f"User already exists: {student_email}, resetting password")
 				try:
 					# Temporarily switch to Administrator to reset password
 					original_user = frappe.session.user
@@ -111,7 +125,7 @@ def accept(web_form, data):
 						frappe.flags.ignore_permissions = True
 						
 						# Get existing user and reset password
-						student_user = frappe.get_doc("User", student_applicant.student_email_id)
+						student_user = frappe.get_doc("User", student_email)
 						student_user.new_password = generated_password
 						student_user.save(ignore_permissions=True)
 						
@@ -137,7 +151,7 @@ def accept(web_form, data):
 					frappe.logger().error(f"Error resetting password for existing user: {str(e)}")
 					frappe.log_error(f"Error resetting password: {str(e)}", frappe.get_traceback())
 					# Still return username even if password reset failed
-					username = student_applicant.student_email_id
+					username = student_email
 					password = None
 		
 		# Create Student document from Student Applicant
@@ -161,8 +175,12 @@ def accept(web_form, data):
 			else:
 				doc_dict['user_exists'] = True
 				frappe.logger().info(f"Returning user exists message (no password) for: {username}")
+		else:
+			frappe.logger().warning(f"No username generated for Student Applicant: {student_applicant.name}, email: {student_email}")
 		
-		# Return dict with credentials
+		# Always return dict (not doc object) for Student Applicant to ensure consistent response format
+		# This is important for both Save and Submit operations
+		frappe.logger().info(f"Returning dict for Student Applicant: {student_applicant.name}, has_username: {bool(username)}, has_password: {bool(password)}")
 		return doc_dict
 	
 	# Return doc for other doctypes
