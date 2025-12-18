@@ -94,6 +94,20 @@ def accept(web_form, data):
 							student_user.insert(ignore_permissions=True)
 							student_user.add_roles("Student")
 							student_user.save(ignore_permissions=True)
+							
+							username = student_user.name
+							password = generated_password
+							
+							frappe.logger().info(f"User created successfully: {username}")
+							
+							# Update Student Applicant owner to the newly created user for proper role permissions
+							# Do this while still in Administrator context
+							try:
+								frappe.db.set_value("Student Applicant", student_applicant.name, "owner", username)
+								frappe.logger().info(f"Updated Student Applicant owner to {username}")
+							except Exception as owner_error:
+								frappe.logger().error(f"Error updating Student Applicant owner: {str(owner_error)}")
+								# Don't fail the whole process if owner update fails
 						except Exception as user_error:
 							frappe.logger().error(f"Error creating user: {str(user_error)}")
 							raise
@@ -102,11 +116,6 @@ def accept(web_form, data):
 							frappe.flags.ignore_permissions = False
 							if frappe.session.user != original_user:
 								frappe.set_user(original_user)
-						
-						username = student_user.name
-						password = generated_password
-						
-						frappe.logger().info(f"User created successfully: {username}")
 					except Exception as e:
 						frappe.logger().error(f"Error creating user: {str(e)}")
 						frappe.log_error(f"Error creating user in webform: {str(e)}", frappe.get_traceback())
@@ -134,6 +143,22 @@ def accept(web_form, data):
 							student_user.add_roles("Student")
 							student_user.save(ignore_permissions=True)
 						
+						username = student_user.name
+						password = generated_password
+						
+						frappe.logger().info(f"Password reset successfully for existing user: {username}")
+						
+						# Update Student Applicant owner if it's still Guest (for proper role permissions)
+						# Do this while still in Administrator context
+						try:
+							current_owner = frappe.db.get_value("Student Applicant", student_applicant.name, "owner")
+							if current_owner == "Guest":
+								frappe.db.set_value("Student Applicant", student_applicant.name, "owner", username)
+								frappe.logger().info(f"Updated Student Applicant owner from Guest to {username}")
+						except Exception as owner_error:
+							frappe.logger().error(f"Error updating Student Applicant owner: {str(owner_error)}")
+							# Don't fail the whole process if owner update fails
+						
 					except Exception as user_error:
 						frappe.logger().error(f"Error resetting password: {str(user_error)}")
 						raise
@@ -142,11 +167,6 @@ def accept(web_form, data):
 						frappe.flags.ignore_permissions = False
 						if frappe.session.user != original_user:
 							frappe.set_user(original_user)
-					
-					username = student_user.name
-					password = generated_password
-					
-					frappe.logger().info(f"Password reset successfully for existing user: {username}")
 				except Exception as e:
 					frappe.logger().error(f"Error resetting password for existing user: {str(e)}")
 					frappe.log_error(f"Error resetting password: {str(e)}", frappe.get_traceback())
