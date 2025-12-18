@@ -193,7 +193,8 @@ standard_portal_menu_items = [
 # ------------------------------
 override_whitelisted_methods = {
 	"frappe.www.list.get": "eduction_override.eduction_override.list_override.get",
-	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.eduction_override.web_form.accept"
+	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.eduction_override.web_form.accept",
+	"education.education.api.get_student_info": "eduction_override.eduction_override.api.get_student_info"
 }
 #
 # each overriding function accepts a `data` argument;

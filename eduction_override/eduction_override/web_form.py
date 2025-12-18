@@ -154,13 +154,18 @@ def accept(web_form, data):
 					username = student_email
 					password = None
 		
+		# Skip Student creation - needs admin analysis first
+		# Student will be created later by admin after reviewing the application
+		frappe.logger().info(f"Skipping Student creation for applicant: {student_applicant.name} - awaiting admin review")
+		
 		# Create Student document from Student Applicant
 		# This ensures Student is created even if after_insert fails
-		try:
-			create_student_from_applicant(student_applicant, username)
-		except Exception as e:
-			frappe.logger().error(f"Error creating Student: {str(e)}")
-			frappe.log_error(f"Error creating Student in webform: {str(e)}", frappe.get_traceback())
+		# COMMENTED OUT: Student creation skipped to allow admin review first
+		# try:
+		# 	create_student_from_applicant(student_applicant, username)
+		# except Exception as e:
+		# 	frappe.logger().error(f"Error creating Student: {str(e)}")
+		# 	frappe.log_error(f"Error creating Student in webform: {str(e)}", frappe.get_traceback())
 		
 		# Convert doc to dict and add credentials if available
 		doc_dict = doc.as_dict(no_nulls=True)
