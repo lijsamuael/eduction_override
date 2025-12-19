@@ -49,7 +49,8 @@ webform_include_js = {"Student Applicant": "public/js/student_applicant_webform.
 # include js in doctype views
 doctype_js = {
 	"Student Admission": "public/js/student_admission.js",
-	"Student Applicant": "public/js/student_applicant.js"
+	"Student Applicant": "public/js/student_applicant.js",
+	"Student": "public/js/student.js"
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
