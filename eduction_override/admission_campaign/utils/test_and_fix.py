@@ -65,7 +65,7 @@ def test_and_fix_all():
 	print("\n4. Checking redirect files...")
 	import os
 	app_path = frappe.get_app_path("eduction_override")
-	utils_file = os.path.join(app_path, "eduction_override", "eduction_override", "utils.py")
+	utils_file = os.path.join(app_path, "admission_campaign", "utils", "utils.py")
 	www_file = os.path.join(app_path, "www", "student_applicant_list.py")
 	
 	if os.path.exists(utils_file):
