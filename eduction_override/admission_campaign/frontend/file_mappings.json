@@ -1,0 +1,20 @@
+{
+  "mappings": [
+    {
+      "source": "eduction_override/eduction_override/admission_campaign/frontend/src/components/Sidebar.vue",
+      "target": "education/frontend/src/components/Sidebar.vue",
+      "description": "Override Sidebar component"
+    },
+    {
+      "source": "eduction_override/eduction_override/admission_campaign/frontend/src/components/SidebarLink.vue",
+      "target": "education/frontend/src/components/SidebarLink.vue",
+      "description": "Override SidebarLink component"
+    },
+    {
+      "source": "eduction_override/eduction_override/admission_campaign/frontend/src/stores/student.js",
+      "target": "education/frontend/src/stores/student.js",
+      "description": "Override student store"
+    }
+  ]
+}
+
