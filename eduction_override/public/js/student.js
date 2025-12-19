@@ -51,7 +51,7 @@ function showSiblingSwitchDialog() {
 	frappe.call({
 		method: 'eduction_override.eduction_override.api.get_siblings_for_current_student',
 		callback: function(r) {
-			if (r.message && r.message.length > 0) {
+			if (r.message && Array.isArray(r.message) && r.message.length > 0) {
 				showSiblingSelectionDialog(r.message);
 			} else {
 				frappe.show_alert({
@@ -61,10 +61,11 @@ function showSiblingSwitchDialog() {
 			}
 		},
 		error: function(r) {
+			console.error('Error loading siblings:', r);
 			frappe.show_alert({
-				message: __('Error loading siblings'),
+				message: __('Error loading siblings: ') + (r.message || 'Unknown error'),
 				indicator: 'red'
-			}, 3);
+			}, 5);
 		}
 	});
 }

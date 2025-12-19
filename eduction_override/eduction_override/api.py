@@ -132,30 +132,106 @@ def get_students_by_guardian(guardian):
 
 @frappe.whitelist(allow_guest=False)
 def get_siblings_for_current_student():
-	"""Get all students with user accounts (no filters for demo purposes)
+	"""Get siblings from Student Sibling table for the currently logged in student
 	
-	:return: List of all students with their details including user email
+	Logic:
+	1. Get current user email -> find Student document (user field = email)
+	2. Get all Student Sibling records where parent = current student -> get student IDs
+	3. For those student IDs, get Student documents and check if they have user accounts
+	4. Return siblings with user accounts
+	
+	:return: List of siblings with their details including user email
 	"""
 	email = frappe.session.user
 	if email == "Administrator":
 		return []
 	
 	try:
-		# Get all students
-		all_students = frappe.get_all(
+		# Use current logged-in user to get siblings (not original user)
+		# This way, if user A switches to user B, we get siblings for user B (current user)
+		current_logged_in_user = email
+		
+		frappe.logger().debug(f"Getting siblings for current user: {current_logged_in_user}")
+		
+		# Step 1: Get current student by user email (user field in Student document)
+		student_doc = frappe.db.get_value(
 			"Student",
+			{"user": current_logged_in_user},
+			"name"
+		)
+		
+		if not student_doc:
+			frappe.logger().debug(f"No student found for user: {current_logged_in_user}")
+			return []
+		
+		current_student = student_doc
+		frappe.logger().debug(f"Current student: {current_student}")
+		
+		# Step 2: Get siblings from Student Sibling table where parent = current_student
+		# Use frappe.db.get_all to bypass permission checks for child table
+		sibling_records = frappe.db.get_all(
+			"Student Sibling",
+			filters={
+				"parent": current_student,
+				"parenttype": "Student"
+			},
+			fields=["student"]
+		)
+		
+		frappe.logger().debug(f"Found {len(sibling_records)} sibling records for student {current_student}")
+		
+		if not sibling_records:
+			frappe.logger().debug(f"No siblings found in Student Sibling table for student: {current_student}")
+			return []
+		
+		# Step 3: Get unique sibling student IDs (only those with student field filled)
+		# The student field should contain Student IDs, but validate they exist
+		sibling_student_ids_raw = [s.student for s in sibling_records if s.student]
+		
+		# Validate that these are actual Student IDs (not full names)
+		# Check if they exist in Student doctype
+		valid_student_ids = []
+		for student_id in sibling_student_ids_raw:
+			# Check if this is a valid Student ID
+			student_exists = frappe.db.exists("Student", student_id)
+			if student_exists:
+				valid_student_ids.append(student_id)
+			else:
+				# If not found by ID, try to find by student_name (in case full name was stored)
+				student_by_name = frappe.db.get_value(
+					"Student",
+					{"student_name": student_id},
+					"name"
+				)
+				if student_by_name:
+					valid_student_ids.append(student_by_name)
+					frappe.logger().debug(f"Found student by name '{student_id}' -> ID: {student_by_name}")
+		
+		sibling_student_ids = list(set(valid_student_ids))
+		
+		frappe.logger().debug(f"Sibling student IDs (validated): {sibling_student_ids}")
+		
+		if not sibling_student_ids:
+			frappe.logger().debug(f"No valid sibling student IDs found")
+			return []
+		
+		# Step 4: Get student details for all sibling IDs
+		# Use frappe.db.get_all to bypass permission checks
+		students = frappe.db.get_all(
+			"Student",
+			filters={"name": ["in", sibling_student_ids]},
 			fields=["name", "student_name", "user", "date_of_birth", "gender", "image"]
 		)
 		
-		if not all_students:
-			frappe.logger().debug("No students found")
-			return []
+		frappe.logger().debug(f"Found {len(students)} students for sibling IDs")
 		
-		# Filter to only include students with user accounts (required for switching)
-		students = [s for s in all_students if s.user]
+		# Step 5: Filter to only include students with user accounts (required for switching)
+		students = [s for s in students if s.user]
+		
+		frappe.logger().debug(f"Found {len(students)} students with user accounts")
 		
 		if not students:
-			frappe.logger().debug("No students with user accounts found")
+			frappe.logger().debug(f"No students with user accounts found in: {sibling_student_ids}")
 			return []
 		
 		# Build result list
@@ -170,12 +246,18 @@ def get_siblings_for_current_student():
 				"image": student.image or ""
 			})
 		
-		frappe.logger().debug(f"Found {len(result)} students with user accounts")
+		frappe.logger().debug(f"Found {len(result)} siblings for student {current_student}")
+		
+		# Ensure we return a list (not None)
+		if not result:
+			result = []
+		
 		return result
 		
 	except Exception as e:
-		frappe.logger().error(f"Error getting students: {str(e)}")
+		frappe.logger().error(f"Error getting siblings: {str(e)}")
 		frappe.logger().error(frappe.get_traceback())
+		# Return empty list instead of None
 		return []
 
 
