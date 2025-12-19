@@ -43,7 +43,7 @@ function fetch_and_populate_siblings(frm, guardian) {
 	
 	// Call the API to get students by guardian
 	frappe.call({
-		method: 'eduction_override.eduction_override.api.get_students_by_guardian',
+		method: 'eduction_override.admission_campaign.api.guardian_api.get_students_by_guardian',
 		args: {
 			guardian: guardian
 		},

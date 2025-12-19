@@ -32,14 +32,14 @@ required_apps = ["education","erpnext"]
 # web_include_css = "/assets/eduction_override/css/eduction_override.css"
 # Note: student_portal_menu.js kept for traditional portal pages (non-Vue)
 web_include_js = [
-	"/assets/eduction_override/js/student_portal_menu.js",
+	"/assets/eduction_override/admission_campaign/js/student_portal_menu.js",
 ]
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "eduction_override/public/scss/website"
 
 # include js, css files in header of web form
-webform_include_js = {"Student Applicant": "public/js/student_applicant_webform.js"}
+webform_include_js = {"Student Applicant": "admission_campaign/js/student_applicant_webform.js"}
 # webform_include_css = {"doctype": "public/css/doctype.css"}
 
 # include js in page
@@ -48,9 +48,9 @@ webform_include_js = {"Student Applicant": "public/js/student_applicant_webform.
 
 # include js in doctype views
 doctype_js = {
-	"Student Admission": "public/js/student_admission.js",
-	"Student Applicant": "public/js/student_applicant.js",
-	"Student": "public/js/student.js"
+	"Student Admission": "admission_campaign/js/student_admission.js",
+	"Student Applicant": "admission_campaign/js/student_applicant.js",
+	"Student": "admission_campaign/js/student_sibling_switch.js"
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -175,11 +175,10 @@ doctype_js = {
 # before_tests = "eduction_override.install.before_tests"
 
 extend_doctype_class = {
-	"Fee Schedule": "eduction_override.eduction_override.fee_schedule.CustomFeeSchedule",
-	"Student": "eduction_override.eduction_override.student.CustomStudent",
-	"Student Applicant": "eduction_override.eduction_override.student_applicant.CustomStudentApplicant",
-	"Web Form": "eduction_override.eduction_override.web_form_doctype.CustomWebForm",
-	"Student Admission": "eduction_override.eduction_override.student_admission.StudentAdmission"
+	"Fee Schedule": "eduction_override.admission_campaign.doctype.fee_schedule.CustomFeeSchedule",
+	"Student": "eduction_override.admission_campaign.doctype.student.CustomStudent",
+	"Web Form": "eduction_override.admission_campaign.doctype.web_form.CustomWebForm",
+	"Student Admission": "eduction_override.admission_campaign.doctype.student_admission.StudentAdmission"
 }
 
 # Portal menu items for Student role (for traditional Frappe portal pages)
@@ -196,9 +195,9 @@ standard_portal_menu_items = [
 # Overriding Methods
 # ------------------------------
 override_whitelisted_methods = {
-	"frappe.www.list.get": "eduction_override.eduction_override.list_override.get",
-	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.eduction_override.web_form.accept",
-	"education.education.api.get_student_info": "eduction_override.eduction_override.api.get_student_info"
+	"frappe.www.list.get": "eduction_override.admission_campaign.list.list_override.get",
+	"frappe.website.doctype.web_form.web_form.accept": "eduction_override.admission_campaign.web_form.web_form.accept",
+	"education.education.api.get_student_info": "eduction_override.admission_campaign.api.student_api.get_student_info"
 }
 #
 # each overriding function accepts a `data` argument;
@@ -219,12 +218,12 @@ override_whitelisted_methods = {
 
 # Request Events
 # ----------------
-before_request = ["eduction_override.eduction_override.utils.before_request"]
+before_request = ["eduction_override.admission_campaign.utils.utils.before_request"]
 # after_request = ["eduction_override.utils.after_request"]
 
 # After Migrate
 # -------------
-after_migrate = ["eduction_override.eduction_override.fix_portal_menu.fix_student_applicant_menu"]
+after_migrate = ["eduction_override.admission_campaign.utils.fix_portal_menu.fix_student_applicant_menu"]
 
 # Job Events
 # ----------
@@ -259,7 +258,7 @@ after_migrate = ["eduction_override.eduction_override.fix_portal_menu.fix_studen
 # --------------------------------
 
 on_login = [
-	"eduction_override.eduction_override.auth.on_login"
+	"eduction_override.admission_campaign.auth.auth.on_login"
 ]
 
 # Automatically update python controller files with type annotations for this app.

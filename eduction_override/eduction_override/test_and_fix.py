@@ -12,7 +12,7 @@ def test_and_fix_all():
 	
 	# 1. Fix Portal Settings
 	print("\n1. Fixing Portal Settings...")
-	from eduction_override.eduction_override.fix_portal_menu import fix_student_applicant_menu
+	from eduction_override.admission_campaign.utils.fix_portal_menu import fix_student_applicant_menu
 	result = fix_student_applicant_menu()
 	print(f"   Portal Settings fixed: {result}")
 	
@@ -81,7 +81,7 @@ def test_and_fix_all():
 	# 5. Test redirect function
 	print("\n5. Testing redirect logic...")
 	try:
-		from eduction_override.eduction_override.utils import before_request
+		from eduction_override.admission_campaign.utils.utils import before_request
 		print("   ✓ before_request function imported successfully")
 	except Exception as e:
 		print(f"   ✗ Error importing before_request: {e}")
@@ -96,7 +96,7 @@ def test_and_fix_all():
 		print(f"   ✗ No Student Applicant hook found!")
 	
 	before_request_hooks = frappe.get_hooks("before_request")
-	if "eduction_override.eduction_override.utils.before_request" in before_request_hooks:
+	if "eduction_override.admission_campaign.utils.utils.before_request" in before_request_hooks:
 		print(f"   ✓ before_request hook configured")
 	else:
 		print(f"   ✗ before_request hook not configured!")

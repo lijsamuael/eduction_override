@@ -1,5 +1,6 @@
-// Custom client script for Student doctype
-// Adds sibling switch functionality
+// Sibling Switch Functionality for Student
+// Allows students to switch between siblings without login/logout
+// Located in: admission_campaign/js/student_sibling_switch.js
 
 frappe.ui.form.on('Student', {
 	refresh: function(frm) {
@@ -12,7 +13,7 @@ frappe.ui.form.on('Student', {
 			
 			// Check if currently impersonated via API
 			frappe.call({
-				method: 'eduction_override.eduction_override.api.get_original_user',
+				method: 'eduction_override.admission_campaign.api.sibling_switch.get_original_user',
 				callback: function(r) {
 					if (r.message) {
 						const originalUser = r.message;
@@ -49,7 +50,7 @@ frappe.ui.form.on('Student', {
 function showSiblingSwitchDialog() {
 	// Get siblings and original user
 	frappe.call({
-		method: 'eduction_override.eduction_override.api.get_siblings_for_current_student',
+		method: 'eduction_override.admission_campaign.api.sibling_switch.get_siblings_for_current_student',
 		callback: function(r) {
 			if (r.message && Array.isArray(r.message) && r.message.length > 0) {
 				showSiblingSelectionDialog(r.message);
@@ -61,7 +62,6 @@ function showSiblingSwitchDialog() {
 			}
 		},
 		error: function(r) {
-			console.error('Error loading siblings:', r);
 			frappe.show_alert({
 				message: __('Error loading siblings: ') + (r.message || 'Unknown error'),
 				indicator: 'red'
@@ -73,7 +73,7 @@ function showSiblingSwitchDialog() {
 function showSiblingSelectionDialog(siblings) {
 	// Get original user to show switch back option
 	frappe.call({
-		method: 'eduction_override.eduction_override.api.get_original_user',
+		method: 'eduction_override.admission_campaign.api.sibling_switch.get_original_user',
 		callback: function(r) {
 			const originalUser = r.message;
 			const currentUser = frappe.boot.user.name;
@@ -177,7 +177,7 @@ function showSiblingSelectionDialog(siblings) {
 // Make switchToSibling available globally
 window.switchToSibling = function(siblingUser) {
 	frappe.call({
-		method: 'eduction_override.eduction_override.api.switch_to_sibling',
+		method: 'eduction_override.admission_campaign.api.sibling_switch.switch_to_sibling',
 		args: {
 			sibling_user: siblingUser
 		},
@@ -202,3 +202,4 @@ window.switchToSibling = function(siblingUser) {
 		}
 	});
 };
+

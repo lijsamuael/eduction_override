@@ -11,7 +11,7 @@ frappe.call = function(opts) {
 	// Check if this is a webform accept call
 	if (opts && opts.method && (
 		opts.method === "frappe.website.doctype.web_form.web_form.accept" ||
-		opts.method === "eduction_override.eduction_override.web_form.accept" ||
+		opts.method === "eduction_override.admission_campaign.web_form.web_form.accept" ||
 		opts.method.includes("web_form.web_form.accept")
 	)) {
 		console.log('Intercepted webform accept call', opts.method);
