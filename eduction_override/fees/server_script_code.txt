@@ -128,6 +128,7 @@ for invoice_data in overdue_invoices:
 			item_row.amount = late_fine_amount - (late_fine_amount * late_fine_component.discount / 100)
 		
 		# Recalculate totals (grand_total, total, in_words, etc. have allow_on_submit enabled)
+		# The outstanding_amount will be automatically recalculated in before_save hook
 		invoice_doc.calculate_taxes_and_totals()
 		invoice_doc.save()
 		frappe.db.commit()

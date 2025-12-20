@@ -3,209 +3,194 @@
 
 import frappe
 from frappe import _
-from frappe.utils import today, getdate
+from frappe.utils import today, getdate, flt
+from datetime import timedelta
 
 
 def daily():
-	"""Daily scheduler to add late fine items to sales invoices when late fine date is reached."""
-	add_late_fine_to_invoices()
-	add_late_fine_to_overdue_invoices()
+	"""Daily scheduler to add late fine items to overdue sales invoices based on fine frequency."""
+	process_late_fines_for_overdue_invoices()
 
 
-def add_late_fine_to_invoices():
-	"""Add late fine items to sales invoices where current date >= late fine date."""
+def process_late_fines_for_overdue_invoices():
+	"""Process late fines for overdue invoices based on custom_fine_frequency.
+	
+	Logic:
+	- If custom_fine_frequency is "Once" and invoice is overdue: add fine once, skip if already added
+	- If custom_fine_frequency is "Daily" or "Per Day" and invoice is overdue: add fine amount each day
+	"""
 	current_date = today()
 	
-	# Find all fee schedules with late fine enabled and date <= today
-	fee_schedules = frappe.get_all(
-		"Fee Schedule",
-		filters={
-			"custom_allow_late_fine": 1,
-			"custom_late_fine_from": ["<=", current_date],
-			"docstatus": 1  # Only submitted fee schedules
-		},
-		fields=["name", "custom_late_fine_amount", "custom_fine_frequency", "custom_description", "custom_late_fine_from"]
-	)
-	
-	if not fee_schedules:
-		return
-	
-	for fee_schedule_data in fee_schedules:
-		fee_schedule_name = fee_schedule_data.name
-		late_fine_amount = fee_schedule_data.custom_late_fine_amount or 0
-		
-		if late_fine_amount <= 0:
-			continue
-		
-		# Check if date is reached (current date >= late fine from date)
-		late_fine_from = fee_schedule_data.custom_late_fine_from
-		if not late_fine_from or getdate(current_date) < getdate(late_fine_from):
-			continue
-		
-		# Find all sales invoices for this fee schedule that don't have late fine yet
-		sales_invoices = frappe.get_all(
-			"Sales Invoice",
-			filters={
-				"fee_schedule": fee_schedule_name,
-				"docstatus": ["<", 2]  # Draft or Submitted (not cancelled)
-			},
-			fields=["name"]
-		)
-		
-		for invoice in sales_invoices:
-			try:
-				add_late_fine_item_to_invoice(
-					invoice.name,
-					fee_schedule_name,
-					late_fine_amount,
-					fee_schedule_data.custom_description
-				)
-			except Exception as e:
-				frappe.log_error(
-					title=f"Error adding late fine to invoice {invoice.name}",
-					message=str(e)
-				)
-
-
-def add_late_fine_item_to_invoice(invoice_name, fee_schedule_name, late_fine_amount, description=None):
-	"""Add late fine item to a sales invoice if not already added."""
-	invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
-	
-	# Check if invoice is submitted - if so, we need to cancel and recreate or use amendment
-	if invoice_doc.docstatus == 1:
-		# Invoice is submitted, we can't modify it directly
-		# For now, log an error - user will need to manually add or cancel and recreate
-		frappe.log_error(
-			title=f"Cannot add late fine to submitted invoice {invoice_name}",
-			message=f"Late fine cannot be automatically added to submitted invoice. Please cancel and recreate or add manually."
-		)
-		return
-	
-	# Check if late fine item already exists
-	for item in invoice_doc.items:
-		# Check by item_code, item_name, or description containing "Late Fine"
-		if (item.item_code and "Late Fine" in (item.item_code or "")) or \
-		   (item.item_name and "Late Fine" in (item.item_name or "")) or \
-		   (item.description and "Late Fine" in (item.description or "")):
-			# Late fine already added, skip
-			return
-	
-	# Get fee schedule to find the late fine item
-	fee_schedule_doc = frappe.get_doc("Fee Schedule", fee_schedule_name)
-	
-	# Find Late Fine component in fee schedule
-	late_fine_component = None
-	for component in fee_schedule_doc.components:
-		if component.fees_category == "Late Fine" or "Late Fine" in (component.description or ""):
-			late_fine_component = component
-			break
-	
-	# Determine item_code to use
-	item_code = None
-	item_name = "Late Fine"
-	
-	if late_fine_component and late_fine_component.item:
-		item_code = late_fine_component.item
-		item_name = late_fine_component.item
-	else:
-		# Try to find Late Fine item in Item master
-		item_code = frappe.db.get_value("Item", {"item_name": "Late Fine"}, "name")
-		if not item_code:
-			item_code = frappe.db.get_value("Item", {"item_code": "Late Fine"}, "name")
-	
-	# Create the item row
-	item_row = invoice_doc.append("items", {
-		"item_code": item_code,
-		"item_name": item_name if not item_code else None,
-		"description": description or (late_fine_component.description if late_fine_component else "Late Fine"),
-		"qty": 1,
-		"rate": late_fine_amount,
-		"amount": late_fine_amount
-	})
-	
-	# Set discount if available from component
-	if late_fine_component and late_fine_component.discount:
-		item_row.discount_percentage = late_fine_component.discount
-		# Recalculate amount with discount
-		item_row.amount = late_fine_amount - (late_fine_amount * late_fine_component.discount / 100)
-	
-	# Calculate totals
-	invoice_doc.calculate_taxes_and_totals()
-	
-	# Save the invoice
-	invoice_doc.save()
-	
-	frappe.db.commit()
-
-
-@frappe.whitelist()
-def add_late_fine_to_overdue_invoices():
-	"""Add late fine items to overdue sales invoices that have late fine amount configured.
-	This function is called by the scheduled job daily."""
-	# Find all sales invoices with status "Overdue" that have late fine amount configured
+	# Find all overdue sales invoices with late fine configuration
+	# Check custom_payment_status instead of status
+	# Only process draft invoices (not submitted or cancelled)
 	overdue_invoices = frappe.get_all(
 		"Sales Invoice",
 		filters={
-			"status": ["like", "Overdue%"],  # Matches "Overdue" or "Overdue and Discounted"
+			"custom_payment_status": ["in", ["Overdue", "Unpaid"]],  # Check custom_payment_status
 			"custom_has_late_fine": 1,
 			"custom_late_fine_amount": [">", 0],
-			"docstatus": ["<", 2]  # Draft or Submitted (not cancelled)
+			"docstatus": 0  # Only draft invoices (not submitted or cancelled)
 		},
-		fields=["name", "custom_late_fine_amount", "custom_late_fine_description", "fee_schedule"]
+		fields=[
+			"name", 
+			"custom_late_fine_amount", 
+			"custom_fine_frequency",
+			"due_date",
+			"fee_schedule"
+		]
 	)
 	
 	if not overdue_invoices:
 		return
 	
+	processed_count = 0
+	skipped_count = 0
+	error_count = 0
+	
 	for invoice_data in overdue_invoices:
 		invoice_name = invoice_data.name
 		late_fine_amount = invoice_data.custom_late_fine_amount or 0
-		description = invoice_data.custom_late_fine_description
+		fine_frequency = invoice_data.custom_fine_frequency or "Once"
+		due_date = invoice_data.due_date
 		fee_schedule_name = invoice_data.fee_schedule
 		
+		# Skip if amount is zero
 		if late_fine_amount <= 0:
 			continue
 		
+		# Check if invoice is actually overdue (due_date < today)
+		if due_date and getdate(due_date) >= getdate(current_date):
+			# Not overdue yet, skip
+			continue
+		
 		try:
-			add_late_fine_item_to_overdue_invoice(
-				invoice_name,
-				late_fine_amount,
-				description,
-				fee_schedule_name
-			)
+			# Check current payment status to ensure it's still overdue
+			current_payment_status = frappe.db.get_value("Sales Invoice", invoice_name, "custom_payment_status")
+			if current_payment_status not in ["Overdue", "Unpaid"]:
+				# Status changed, skip
+				continue
+			
+			if fine_frequency == "Once":
+				# Add fine once, skip if already added
+				added = add_late_fine_once(invoice_name, late_fine_amount, fee_schedule_name)
+				if added:
+					processed_count += 1
+				else:
+					skipped_count += 1
+			elif fine_frequency in ["Daily", "Per Day"]:
+				# Add fine amount each day
+				added = add_late_fine_daily(invoice_name, late_fine_amount, fee_schedule_name, due_date)
+				if added:
+					processed_count += 1
+				else:
+					skipped_count += 1
+			else:
+				# Unknown frequency, skip
+				skipped_count += 1
+				
 		except Exception as e:
+			error_count += 1
 			frappe.log_error(
-				title=f"Error adding late fine to overdue invoice {invoice_name}",
-				message=str(e)
+				title=f"Error processing late fine for invoice {invoice_name}",
+				message=f"Error: {str(e)}\nFrequency: {fine_frequency}"
 			)
+	
+	# Log summary
+	if processed_count > 0 or error_count > 0:
+		frappe.log_error(
+			title="Late Fine Scheduler Summary",
+			message=f"Processed: {processed_count}, Skipped: {skipped_count}, Errors: {error_count}"
+		)
 
 
-def add_late_fine_item_to_overdue_invoice(invoice_name, late_fine_amount, description=None, fee_schedule_name=None):
-	"""Add late fine item to an overdue sales invoice if not already added."""
+def add_late_fine_once(invoice_name, late_fine_amount, fee_schedule_name):
+	"""Add late fine item once to an invoice. Skip if already added.
+	
+	Only processes draft invoices (not submitted or cancelled).
+	"""
 	invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
+	
+	# Only process draft invoices
+	if invoice_doc.docstatus != 0:
+		return False
 	
 	# Check if late fine item already exists
 	for item in invoice_doc.items:
-		# Check by item_code, item_name, or description containing "Late Fine"
-		if (item.item_code and "Late Fine" in (item.item_code or "")) or \
-		   (item.item_name and "Late Fine" in (item.item_name or "")) or \
-		   (item.description and "Late Fine" in (item.description or "")):
+		if is_late_fine_item(item):
 			# Late fine already added, skip
-			return
+			return False
 	
-	# If invoice is submitted, we need to handle it differently
-	if invoice_doc.docstatus == 1:
-		# For submitted invoices, create a new invoice for the late fine
-		_create_late_fine_invoice_for_submitted(invoice_doc, late_fine_amount, description, fee_schedule_name)
-		return
+	# Add late fine item directly (only draft invoices are processed)
+	_add_late_fine_item_to_invoice(invoice_doc, late_fine_amount, fee_schedule_name)
+	invoice_doc.save()
+	frappe.db.commit()
 	
-	# For draft invoices, add the item directly
+	return True
+
+
+def add_late_fine_daily(invoice_name, late_fine_amount, fee_schedule_name, due_date):
+	"""Add late fine amount each day for overdue invoices.
+	
+	For Daily frequency: adds fine amount each day the invoice is overdue.
+	Only processes draft invoices (not submitted or cancelled).
+	"""
+	invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
+	
+	# Only process draft invoices
+	if invoice_doc.docstatus != 0:
+		return False
+	
+	current_date = today()
+	current_date_obj = getdate(current_date)
+	
+	# Start from day after due date
+	start_date = getdate(due_date) + timedelta(days=1) if due_date else current_date_obj
+	
+	# Check if current date is past the start date
+	if current_date_obj < start_date:
+		# Not yet time to add fine
+		return False
+	
+	# Draft invoice - check if late fine item was added today
+	# Count existing late fine items
+	existing_items = [item for item in invoice_doc.items if is_late_fine_item(item)]
+	
+	# Calculate how many days we should have fines for
+	days_overdue = (current_date_obj - start_date).days + 1
+	
+	# If we have fewer items than days overdue, add items for missing days
+	items_to_add = days_overdue - len(existing_items)
+	
+	if items_to_add > 0:
+		# Add fine items for missing days (including today)
+		for day in range(items_to_add):
+			_add_late_fine_item_to_invoice(invoice_doc, late_fine_amount, fee_schedule_name)
+		invoice_doc.save()
+		frappe.db.commit()
+	else:
+		# Already up to date, skip
+		return False
+	
+	return True
+
+
+def is_late_fine_item(item):
+	"""Check if an item is a late fine item."""
+	return (
+		(item.item_code and "Late Fine" in (item.item_code or "")) or
+		(item.item_name and "Late Fine" in (item.item_name or "")) or
+		(item.description and "Late Fine" in (item.description or ""))
+	)
+
+
+def _add_late_fine_item_to_invoice(invoice_doc, late_fine_amount, fee_schedule_name):
+	"""Add a late fine item to an invoice document."""
 	# Get fee schedule to find the late fine item if available
 	late_fine_component = None
 	if fee_schedule_name:
 		try:
 			fee_schedule_doc = frappe.get_doc("Fee Schedule", fee_schedule_name)
-			# Find Late Fine component in fee schedule
 			for component in fee_schedule_doc.components:
 				if component.fees_category == "Late Fine" or "Late Fine" in (component.description or ""):
 					late_fine_component = component
@@ -226,14 +211,24 @@ def add_late_fine_item_to_overdue_invoice(invoice_name, late_fine_amount, descri
 		if not item_code:
 			item_code = frappe.db.get_value("Item", {"item_code": "Late Fine"}, "name")
 	
+	# Get income account from existing items or company defaults
+	income_account = None
+	if invoice_doc.items:
+		income_account = invoice_doc.items[0].income_account
+	
+	if not income_account:
+		# Get from company defaults
+		income_account = frappe.db.get_value("Company", invoice_doc.company, "default_income_account")
+	
 	# Create the item row
 	item_row = invoice_doc.append("items", {
 		"item_code": item_code,
 		"item_name": item_name if not item_code else None,
-		"description": description or (late_fine_component.description if late_fine_component else "Late Fine"),
+		"description": late_fine_component.description if late_fine_component else "Late Fine",
 		"qty": 1,
 		"rate": late_fine_amount,
-		"amount": late_fine_amount
+		"amount": late_fine_amount,
+		"income_account": income_account
 	})
 	
 	# Set discount if available from component
@@ -244,26 +239,24 @@ def add_late_fine_item_to_overdue_invoice(invoice_name, late_fine_amount, descri
 	
 	# Calculate totals
 	invoice_doc.calculate_taxes_and_totals()
-	
-	# Save the invoice
-	invoice_doc.save()
-	
-	frappe.db.commit()
 
 
-def _create_late_fine_invoice_for_submitted(original_invoice_doc, late_fine_amount, description=None, fee_schedule_name=None):
+def _create_late_fine_invoice_for_submitted(original_invoice_doc, late_fine_amount, fee_schedule_name):
 	"""Create a new invoice for late fine when the original invoice is submitted."""
-	# Check if a late fine invoice already exists for this invoice
+	# Check if a late fine invoice already exists for this fee schedule today
+	current_date = today()
 	existing_late_fine_invoice = frappe.db.exists(
 		"Sales Invoice",
 		{
-			"custom_original_invoice_for_late_fine": original_invoice_doc.name,
-			"docstatus": ["<", 2]  # Draft or Submitted
+			"fee_schedule": fee_schedule_name,
+			"posting_date": current_date,
+			"docstatus": ["<", 2],  # Draft or Submitted
+			"name": ["!=", original_invoice_doc.name]
 		}
 	)
 	
 	if existing_late_fine_invoice:
-		# Late fine invoice already exists, skip
+		# Late fine invoice already created today, skip
 		return
 	
 	# Get fee schedule to find the late fine item if available
@@ -271,7 +264,6 @@ def _create_late_fine_invoice_for_submitted(original_invoice_doc, late_fine_amou
 	if fee_schedule_name:
 		try:
 			fee_schedule_doc = frappe.get_doc("Fee Schedule", fee_schedule_name)
-			# Find Late Fine component in fee schedule
 			for component in fee_schedule_doc.components:
 				if component.fees_category == "Late Fine" or "Late Fine" in (component.description or ""):
 					late_fine_component = component
@@ -291,6 +283,14 @@ def _create_late_fine_invoice_for_submitted(original_invoice_doc, late_fine_amou
 		item_code = frappe.db.get_value("Item", {"item_name": "Late Fine"}, "name")
 		if not item_code:
 			item_code = frappe.db.get_value("Item", {"item_code": "Late Fine"}, "name")
+	
+	# Get income account
+	income_account = None
+	if original_invoice_doc.items:
+		income_account = original_invoice_doc.items[0].income_account
+	
+	if not income_account:
+		income_account = frappe.db.get_value("Company", original_invoice_doc.company, "default_income_account")
 	
 	# Create a new invoice for the late fine
 	late_fine_invoice = frappe.get_doc({
@@ -307,22 +307,23 @@ def _create_late_fine_invoice_for_submitted(original_invoice_doc, late_fine_amou
 		"debit_to": original_invoice_doc.debit_to,
 		"cost_center": original_invoice_doc.cost_center,
 		"project": original_invoice_doc.project,
-		"student": original_invoice_doc.student if hasattr(original_invoice_doc, 'student') else None,
-		"fee_schedule": original_invoice_doc.fee_schedule if hasattr(original_invoice_doc, 'fee_schedule') else None,
-		"custom_original_invoice_for_late_fine": original_invoice_doc.name,
-		"custom_allow_late_fine": 1,
+		"student": getattr(original_invoice_doc, 'student', None),
+		"fee_schedule": getattr(original_invoice_doc, 'fee_schedule', None),
+		"custom_has_late_fine": 1,
 		"custom_late_fine_amount": late_fine_amount,
-		"custom_late_fine_description": description or "Late Fine for overdue invoice",
+		"custom_fine_frequency": original_invoice_doc.get('custom_fine_frequency', 'Once'),
+		"custom_late_fine_from": original_invoice_doc.due_date or today(),
 	})
 	
 	# Add the late fine item
 	item_row = late_fine_invoice.append("items", {
 		"item_code": item_code,
 		"item_name": item_name if not item_code else None,
-		"description": description or (late_fine_component.description if late_fine_component else "Late Fine"),
+		"description": late_fine_component.description if late_fine_component else "Late Fine",
 		"qty": 1,
 		"rate": late_fine_amount,
-		"amount": late_fine_amount
+		"amount": late_fine_amount,
+		"income_account": income_account
 	})
 	
 	# Set discount if available from component
@@ -340,7 +341,6 @@ def _create_late_fine_invoice_for_submitted(original_invoice_doc, late_fine_amou
 	frappe.db.commit()
 	
 	frappe.log_error(
-		title=f"Created late fine invoice for overdue invoice {original_invoice_doc.name}",
-		message=f"Late fine invoice {late_fine_invoice.name} created for overdue invoice {original_invoice_doc.name}"
+		title="Late Fine Invoice Created",
+		message=f"Created late fine invoice {late_fine_invoice.name} for overdue invoice {original_invoice_doc.name}"
 	)
-

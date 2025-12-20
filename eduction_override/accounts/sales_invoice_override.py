@@ -2,44 +2,53 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice
+from frappe.utils import getdate, today
 
 
 class CustomSalesInvoice(SalesInvoice):
-	def on_update_after_submit(self):
-		"""Override to handle cases where items are added to submitted invoices.
+	def validate(self):
+		"""Override validate to set custom_payment_status to Overdue if due date is reached."""
+		# Call parent validate first
+		super().validate()
 		
-		The base implementation fails with IndexError when new items are added
-		because it tries to compare items by index, but the new items list
-		has more items than the old items list.
-		"""
-		fields_to_check = [
-			"cash_bank_account",
-			"write_off_account",
-			"unrealized_profit_loss_account",
-			"is_opening",
-		]
-		child_tables = {
-			"items": ("income_account", "expense_account", "discount_account"),
-			"taxes": ("account_head",),
-		}
+		# Set custom_payment_status based on due date
+		self.set_custom_payment_status()
+	
+	def set_custom_payment_status(self):
+		"""Set custom_payment_status to Overdue if due date has passed and invoice is not paid."""
+		if not self.due_date:
+			return
 		
-		# Try the normal check first
-		try:
-			self.needs_repost = self.check_if_fields_updated(fields_to_check, child_tables)
-		except (IndexError, AttributeError, KeyError) as e:
-			# If there's an IndexError, it's likely because items were added
-			# In this case, we need to repost to account for the new items
-			frappe.log_error(
-				title="Sales Invoice: Error checking fields update",
-				message=f"Error in check_if_fields_updated: {str(e)}\n"
-						f"This usually happens when items are added to a submitted invoice.\n"
-						f"Invoice: {self.name}"
-			)
-			# Assume repost is needed when items are added
-			self.needs_repost = True
+		# Only set if custom_payment_status field exists
+		if not hasattr(self, 'custom_payment_status'):
+			return
 		
-		if self.needs_repost:
-			self.validate_for_repost()
-			self.repost_accounting_entries()
-
+		due_date = getdate(self.due_date)
+		current_date = getdate(today())
+		
+		# Check if due date has been reached (due_date <= current_date)
+		if due_date <= current_date:
+			# Due date has been reached
+			if self.outstanding_amount > 0:
+				# Invoice is still outstanding, set to Overdue
+				self.custom_payment_status = "Overdue"
+			elif self.outstanding_amount == 0:
+				# Fully paid
+				self.custom_payment_status = "Paid"
+			elif self.outstanding_amount > 0 and self.outstanding_amount < self.grand_total:
+				# Partially paid
+				self.custom_payment_status = "Partially Paid"
+		else:
+			# Due date hasn't been reached yet
+			if self.outstanding_amount > 0:
+				# Still unpaid but not overdue yet
+				if not self.custom_payment_status:
+					self.custom_payment_status = "Unpaid"
+			elif self.outstanding_amount == 0:
+				# Fully paid
+				self.custom_payment_status = "Paid"
+			elif self.outstanding_amount > 0 and self.outstanding_amount < self.grand_total:
+				# Partially paid
+				self.custom_payment_status = "Partially Paid"

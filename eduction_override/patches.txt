@@ -7,3 +7,5 @@
 eduction_override.fees.patches.add_billing_contact_field
 eduction_override.fees.patches.remove_additional_settings_fields
 eduction_override.fees.patches.add_late_fee_fields_to_sales_invoice
+eduction_override.fees.patches.remove_allow_on_submit_property_setters
+eduction_override.fees.patches.set_sales_invoice_list_view_fields

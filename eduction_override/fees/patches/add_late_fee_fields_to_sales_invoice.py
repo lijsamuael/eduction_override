@@ -101,14 +101,61 @@ def execute():
 				except Exception as e:
 					frappe.log_error(f"Error creating property setter for {fieldname}: {str(e)}")
 	
+	# Enable allow_on_submit for calculated fields in Sales Invoice Item child table
+	child_doctype = "Sales Invoice Item"
+	child_calculated_fields = [
+		"net_rate",
+		"base_net_rate",
+		"net_amount",
+		"base_net_amount",
+		"amount",
+		"base_amount",
+		"rate",
+		"base_rate",
+		"stock_qty",
+		"stock_uom_rate",
+	]
+	
+	for fieldname in child_calculated_fields:
+		# Check if field exists in DocField
+		if frappe.db.exists("DocField", {"parent": child_doctype, "fieldname": fieldname}):
+			# Check if property setter already exists
+			existing_property = frappe.db.get_value(
+				"Property Setter",
+				{"doc_type": child_doctype, "field_name": fieldname, "property": "allow_on_submit"},
+				["name", "value"]
+			)
+			
+			if existing_property:
+				# Check if value is correct
+				if existing_property[1] != "1":
+					# Update existing property setter
+					frappe.db.set_value("Property Setter", existing_property[0], "value", "1")
+					updated_count += 1
+			else:
+				# Create new property setter
+				try:
+					make_property_setter(
+						doctype=child_doctype,
+						fieldname=fieldname,
+						property="allow_on_submit",
+						value="1",
+						property_type="Check",
+						validate_fields_for_doctype=False
+					)
+					created_count += 1
+				except Exception as e:
+					frappe.log_error(f"Error creating property setter for {child_doctype}.{fieldname}: {str(e)}")
+	
 	frappe.db.commit()
 	
 	# Clear cache to ensure property setters are loaded
 	frappe.clear_cache(doctype=doctype)
+	frappe.clear_cache(doctype=child_doctype)
 	
 	# Log summary
 	frappe.log_error(
 		title="Property Setters Ensured",
-		message=f"Created {created_count} new property setters, updated {updated_count} existing ones for {doctype} with allow_on_submit=1"
+		message=f"Created {created_count} new property setters, updated {updated_count} existing ones for {doctype} and {child_doctype} with allow_on_submit=1"
 	)
 
