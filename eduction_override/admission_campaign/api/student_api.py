@@ -77,3 +77,4 @@ def get_student_info():
 	frappe.logger().info(f"Student not found for user {email}, returning minimal info for portal access")
 	return student_info
 
+

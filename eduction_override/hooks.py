@@ -273,3 +273,41 @@ on_login = [
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+fixtures = [
+    # Scripts (have module field)
+    {
+        "dt": "Client Script",
+        "filters": [["module", "=", "Eduction Override"]]
+    },
+    {
+        "dt": "Server Script",
+        "filters": [["module", "=", "Eduction Override"]]
+    },
+
+    # Workspace (has module)
+    {
+        "dt": "Workspace",
+        "filters": [["module", "=", "Eduction Override"]]
+    },
+
+    # Workflow (NO module field ❗)
+    "Workflow",
+    "Workflow State",
+    "Workflow Action",
+
+    # Customization
+    {
+        "dt": "Custom Field",
+        "filters": [["module", "=", "Eduction Override"]]
+    },
+    {
+        "dt": "Property Setter",
+        "filters": [["module", "=", "Eduction Override"]]
+    },
+
+    # Print
+    {
+        "dt": "Print Format",
+        "filters": [["module", "=", "Eduction Override"]]
+    }
+]

@@ -48,3 +48,4 @@ This folder contains all customizations for the Admission Campaign functionality
 
 - **patches/** - Database migration patches
 
+
